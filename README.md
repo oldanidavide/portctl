@@ -1,0 +1,327 @@
+# portctl
+
+`portctl` is a small command-line tool for Linux and macOS that does two things:
+
+- **SSH tunnels.** It opens a port on your computer that leads to a port on a remote server, like `ssh -L`, but you name your tunnels once in a config file and start and stop them with one short command.
+- **Local ports.** It shows which program is using a port on your computer, and can stop it safely.
+
+```text
+$ portctl tunnel start 8000
+✓ Tunnel started
+
+  127.0.0.1:8000 → 127.0.0.1:8000
+  via davide@production
+  PID 41230
+
+$ portctl port info 5432
+● Port 5432
+
+  Process: postgres (PID 3904, user davide)
+  Listen:  [::1], 127.0.0.1
+  Command: /opt/homebrew/opt/postgresql@14/bin/postgres -D /opt/homebrew/var/postgresql@14
+  Started: Wed Sep 23 09:49:27 2026
+```
+
+It uses the `ssh` already installed on your computer, so your keys, passwords, `~/.ssh/config` and ssh-agent keep working as usual.
+
+## Contents
+
+1. [Requirements](#requirements)
+2. [Build and install](#build-and-install)
+3. [Tab completion](#tab-completion)
+4. [First steps](#first-steps)
+5. [Configuration](#configuration)
+6. [Commands](#commands)
+7. [Troubleshooting](#troubleshooting)
+8. [Development](#development)
+
+## Requirements
+
+- Linux / macOS
+- `ssh` (preinstalled on macOS and on nearly every Linux distribution)
+- `lsof` for the `port` commands (preinstalled on macOS; on Linux, `ss` also works)
+- [Go](https://go.dev/dl/) 1.23 or later, only to build it
+
+## Build and install
+
+**1. Build.** From the project folder:
+
+```bash
+go build -o portctl ./cmd/portctl
+```
+
+This creates the `portctl` program in the current folder. You can try it with `./portctl help`.
+
+To show a version number in `portctl version`, build with:
+
+```bash
+go build -ldflags "-X github.com/oldanidavide/portctl/internal/cli.version=0.1.0" -o portctl ./cmd/portctl
+```
+
+**2. Install it as a command**, so you can type `portctl` from any folder. Choose one:
+
+For all users (asks for your password):
+
+```bash
+sudo install -m 0755 portctl /usr/local/bin/portctl
+```
+
+Only for you, without `sudo`:
+
+```bash
+mkdir -p ~/.local/bin
+install -m 0755 portctl ~/.local/bin/portctl
+```
+
+If you use `~/.local/bin`, it has to be on your `PATH`. Most Linux distributions already include it. On macOS, add this line to `~/.zshrc`, then open a new terminal:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+**3. Check it works:**
+
+```bash
+portctl version
+```
+
+To update, build again and repeat step 2.
+
+## Tab completion
+
+With completion on, pressing <kbd>Tab</kbd> completes commands, options and even your tunnel and port numbers:
+
+```text
+$ portctl p<Tab>                →  portctl port
+$ portctl tunnel st<Tab>        →  start  start-all  stop  stop-all
+$ portctl tunnel start <Tab>
+3306  -- mysql → root@database-server:3306
+8000  -- development → davide@production:8000
+$ portctl port kill <Tab>       →  the ports in use, with their program
+```
+
+Zsh and fish also show the description next to each value.
+
+Completion must be enabled once per shell. Not sure which shell you use? Run `echo $SHELL`. On macOS it is zsh unless you changed it.
+
+### Zsh (default on macOS)
+
+Add one line to `~/.zshrc`:
+
+```bash
+echo 'source <(portctl completion zsh)' >> ~/.zshrc
+```
+
+Then open a new terminal.
+
+### Bash
+
+On Linux:
+
+```bash
+echo 'eval "$(portctl completion bash)"' >> ~/.bashrc
+```
+
+On macOS, the Terminal app reads `~/.bash_profile` instead:
+
+```bash
+echo 'eval "$(portctl completion bash)"' >> ~/.bash_profile
+```
+
+Then open a new terminal.
+
+### Fish
+
+```bash
+mkdir -p ~/.config/fish/completions
+portctl completion fish > ~/.config/fish/completions/portctl.fish
+```
+
+Then open a new terminal.
+
+After you update portctl, nothing needs to be redone: completion always asks the installed `portctl` what to suggest.
+
+### Check that it works
+
+Type `portctl ` (with the space), then press <kbd>Tab</kbd>. You should see `tunnel`, `port`, `config` and the other commands. If you see the names of files instead, see [Troubleshooting](#troubleshooting).
+
+## First steps
+
+**1. Create the configuration file:**
+
+```bash
+portctl config init
+```
+
+This writes an example to `~/.config/portctl/config.yaml`. `portctl config path` prints its location.
+
+**2. Open it and set your server** (see [Configuration](#configuration)):
+
+```yaml
+ssh:
+  user: davide
+  host: your-host-ip
+
+tunnels:
+  - port: 8000
+    name: development
+```
+
+**3. Start the tunnel:**
+
+```bash
+portctl tunnel start 8000
+```
+
+If the server asks for a password or a key passphrase, type it as you would with `ssh`. Then the tunnel keeps running in the background, and `http://localhost:8000` on your computer reaches port 8000 on the server.
+
+**4. See it and stop it:**
+
+```bash
+portctl tunnel list
+portctl tunnel stop 8000
+```
+
+## Configuration
+
+The file is `~/.config/portctl/config.yaml`. A complete example:
+
+```yaml
+# The server used by every tunnel, unless a tunnel says otherwise.
+ssh:
+  user: davide                          # SSH user name
+  host: your-host-ip                      # server name or IP; an alias from ~/.ssh/config works too
+  port: 22                              # SSH port (optional, default 22)
+  identity_file: ~/.ssh/id_ed25519      # private key (optional)
+  keepalive:                            # keep idle connections open (optional)
+    enabled: true
+    interval: 30                        # seconds between checks
+    count_max: 3                        # failed checks before giving up
+
+defaults:
+  remote_host: 127.0.0.1                # where the port lives, as seen from the server
+
+tunnels:
+  - port: 8000                          # port on your computer
+    name: development                   # a label you choose
+    auto_start: true                    # started by "portctl tunnel start-all"
+
+  - port: 3306
+    name: mysql
+    remote_port: 3307                   # port on the server, if different
+    user: root                          # these override the ssh: section
+    host: database-server
+```
+
+What each tunnel setting means:
+
+| Setting | Meaning | If missing |
+|---|---|---|
+| `port` | Port on your computer | required |
+| `remote_port` | Port on the server | same as `port` |
+| `name` | Label shown in lists and completion | none |
+| `auto_start` | Include in `tunnel start-all` | `false` |
+| `user`, `host`, `identity_file` | Use a different server or key for this tunnel | taken from `ssh:` |
+| `remote_host` | Reach another machine through the server, e.g. a database host | taken from `defaults:` |
+
+Format rules: indent with two spaces, and use `#` for comments.
+
+Passwords cannot be stored in the file. `ssh` asks for them when needed. For more SSH settings (jump hosts, other keys, and so on), use `~/.ssh/config` as usual: `portctl` follows it.
+
+## Commands
+
+### Tunnels
+
+| Command | What it does |
+|---|---|
+| `portctl tunnel list` | Show configured tunnels and whether they are running (`--json` for scripts) |
+| `portctl tunnel start <port>` | Start a tunnel in the background |
+| `portctl tunnel stop <port>` | Stop a tunnel |
+| `portctl tunnel restart <port>` | Stop and start again |
+| `portctl tunnel start-all` | Start every tunnel with `auto_start: true` |
+| `portctl tunnel stop-all` | Stop every running tunnel |
+| `portctl tunnel restart-all` | Restart every running tunnel |
+| `portctl tunnel show <port>` | Show a tunnel's settings and the exact `ssh` command |
+| `portctl tunnel logs <port>` | Show what `ssh` printed, useful when a tunnel stops |
+
+Options for `tunnel start`:
+
+| Option | What it does |
+|---|---|
+| `-u`, `--user <name>` | Use another SSH user |
+| `-H`, `--host <server>` | Use another server |
+| `--identity <file>` | Use another private key |
+| `--dry-run` | Only print the `ssh` command, do not run it |
+| `--foreground` | Keep `ssh` in the terminal, to see what goes wrong; stop with <kbd>Ctrl</kbd>+<kbd>C</kbd> |
+
+Examples:
+
+```bash
+portctl tunnel start 8000                      # as configured
+portctl tunnel start 8000 --dry-run            # see what would run
+portctl tunnel start 9000 -u davide -H myvps   # a tunnel that is not in the config
+```
+
+With `-u` and `-H` you can start a tunnel without any config file. `restart` remembers the options a tunnel was started with.
+
+If the port on your computer is already taken, `tunnel start` tells you which program holds it and how to stop it.
+
+### Ports
+
+| Command | What it does |
+|---|---|
+| `portctl port list` | Show every port in use, with the program, PID and user (`--json` for scripts) |
+| `portctl port info <port>` | Show the program using a port, with its full command and start time |
+| `portctl port kill <port>` | Stop the program using a port, after asking for confirmation |
+
+Options for `port kill`:
+
+| Option | What it does |
+|---|---|
+| `-y`, `--yes` | Do not ask for confirmation |
+| `-f`, `--force` | Force-stop the program if it does not stop by itself |
+
+`port kill` is careful: it stops portctl's own tunnels the clean way, refuses to touch system processes and other users' programs, and checks right before stopping that the program still holds the port.
+
+Without `sudo`, you only see your own programs. Use `sudo portctl port list` to see all of them.
+
+### Other
+
+| Command | What it does |
+|---|---|
+| `portctl config` | Show where the configuration file is |
+| `portctl config init` | Create an example configuration |
+| `portctl completion zsh\|bash\|fish` | Print the completion script (see [Tab completion](#tab-completion)) |
+| `portctl version` | Show the version |
+| `portctl help` | Show all commands |
+
+### Options for every command
+
+| Option | What it does |
+|---|---|
+| `-q`, `--quiet` | Do not print success messages |
+| `--no-color` | Turn off colors (also `NO_COLOR=1`) |
+
+## Troubleshooting
+
+**Tab completes file names instead of commands.** Completion is not enabled in this shell. Follow [Tab completion](#tab-completion) for your shell (`echo $SHELL` tells you which), then open a new terminal.
+
+**`command not found: portctl`.** The folder where you installed it is not on your `PATH`. See step 2 of [Build and install](#build-and-install).
+
+**The tunnel starts but then stops working.** Run `portctl tunnel logs <port>` to see the `ssh` error, or `portctl tunnel start <port> --foreground` to watch it live.
+
+**"port already in use".** Another program holds that port on your computer. `portctl port info <port>` shows which, and `portctl port kill <port>` stops it.
+
+## Development
+
+```bash
+go test ./...
+go build ./...
+```
+
+The project uses only the Go standard library.
+
+Known limitations:
+
+- Only local forwarding (`ssh -L`) is supported for now. Remote (`-R`) and SOCKS (`-D`) tunnels are not.
+- `ssh` reports login errors before going to the background, but the connection can still drop later. Check `portctl tunnel logs <port>`.
