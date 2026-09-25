@@ -1,0 +1,98 @@
+# Release configuration: https://goreleaser.com
+# Run by .github/workflows/release.yml when a v* tag is pushed.
+# Try it locally without publishing: goreleaser release --snapshot --clean
+version: 2
+
+project_name: portctl
+
+before:
+  hooks:
+    - go mod tidy
+    - sh scripts/completions.sh
+
+builds:
+  - main: ./cmd/portctl
+    binary: portctl
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/oldanidavide/portctl/internal/cli.version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+      - completions/*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+nfpms:
+  - package_name: portctl
+    vendor: Davide Oldani
+    maintainer: Davide Oldani <oldanidavide@users.noreply.github.com>
+    homepage: https://github.com/oldanidavide/portctl
+    description: Manage SSH tunnels and inspect local ports.
+    license: MIT
+    formats: [deb, rpm, archlinux]
+    bindir: /usr/bin
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/licenses/portctl/LICENSE
+      - src: ./completions/portctl.bash
+        dst: /usr/share/bash-completion/completions/portctl
+      - src: ./completions/portctl.fish
+        dst: /usr/share/fish/vendor_completions.d/portctl.fish
+      - src: ./completions/_portctl
+        dst: /usr/share/zsh/vendor-completions/_portctl
+        packager: deb
+      - src: ./completions/_portctl
+        dst: /usr/share/zsh/site-functions/_portctl
+        packager: rpm
+      - src: ./completions/_portctl
+        dst: /usr/share/zsh/site-functions/_portctl
+        packager: archlinux
+    overrides:
+      deb:
+        recommends: [openssh-client, lsof]
+      rpm:
+        recommends: [openssh-clients, lsof]
+      archlinux:
+        dependencies: [openssh]
+    archlinux:
+      packager: Davide Oldani <oldanidavide@users.noreply.github.com>
+
+homebrew_casks:
+  - name: portctl
+    repository:
+      owner: oldanidavide
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/oldanidavide/portctl
+    description: Manage SSH tunnels and inspect local ports
+    license: MIT
+    # Nothing is published until the HOMEBREW_TAP_TOKEN secret exists.
+    skip_upload: '{{ if eq (envOrDefault "HOMEBREW_TAP_TOKEN" "") "" }}true{{ end }}'
+    completions:
+      bash: completions/portctl.bash
+      zsh: completions/_portctl
+      fish: completions/portctl.fish
+    hooks:
+      post:
+        # The binary is not signed: remove the quarantine flag so macOS runs it.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/portctl"]
+          end

@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-portctl
+/portctl
 
 # Test binary, built with `go test -c`
 *.test
@@ -31,3 +31,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+# GoReleaser output
+/dist/
+/completions/

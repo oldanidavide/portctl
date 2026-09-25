@@ -26,23 +26,67 @@ It uses the `ssh` already installed on your computer, so your keys, passwords, `
 
 ## Contents
 
-1. [Requirements](#requirements)
-2. [Build and install](#build-and-install)
-3. [Tab completion](#tab-completion)
-4. [First steps](#first-steps)
-5. [Configuration](#configuration)
-6. [Commands](#commands)
-7. [Troubleshooting](#troubleshooting)
-8. [Development](#development)
+1. [Install](#install)
+2. [Requirements](#requirements)
+3. [Build from source](#build-from-source)
+4. [Tab completion](#tab-completion)
+5. [First steps](#first-steps)
+6. [Configuration](#configuration)
+7. [Commands](#commands)
+8. [Troubleshooting](#troubleshooting)
+9. [Development](#development)
+
+## Install
+
+**macOS**, with [Homebrew](https://brew.sh):
+
+```bash
+brew install oldanidavide/tap/portctl
+```
+
+With the full name, Homebrew adds the `oldanidavide/tap` tap and trusts it for portctl by itself.
+
+**Linux** (Debian, Ubuntu, Fedora, openSUSE, Arch, CachyOS and others):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oldanidavide/portctl/main/install.sh | sh
+```
+
+The script downloads the latest release for your processor (x86_64 or arm64), checks it against the published checksums, and installs it with your package manager: a `.deb` with apt, an `.rpm` with dnf, yum or zypper, a `.pkg.tar.zst` with pacman. It asks for your password through `sudo`. On other systems it copies the program to `/usr/local/bin`.
+
+Options, written after the `|`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oldanidavide/portctl/main/install.sh | PORTCTL_VERSION=0.1.0 sh    # a specific version
+curl -fsSL https://raw.githubusercontent.com/oldanidavide/portctl/main/install.sh | PORTCTL_METHOD=binary sh   # only copy the program
+```
+
+You can also download a package from the [Releases page](https://github.com/oldanidavide/portctl/releases/latest) and install it yourself, for example `sudo apt install ./portctl_0.1.0_linux_amd64.deb`.
+
+**With Go** (1.23 or later):
+
+```bash
+go install github.com/oldanidavide/portctl/cmd/portctl@latest
+```
+
+Then check it works with `portctl version`.
+
+With Homebrew and the install script, [tab completion](#tab-completion) already works: just open a new terminal. With `go install` or `PORTCTL_METHOD=binary`, enable it once as described in [Tab completion](#tab-completion).
+
+**Update:** on macOS, `brew upgrade portctl`. On Linux, run the install script again.
+
+**Uninstall:** on macOS, `brew uninstall portctl`. On Linux, with your package manager: `sudo apt remove portctl`, `sudo dnf remove portctl`, `sudo pacman -R portctl`. If the script only copied the program: `sudo rm /usr/local/bin/portctl`.
 
 ## Requirements
 
 - Linux / macOS
 - `ssh` (preinstalled on macOS and on nearly every Linux distribution)
 - `lsof` for the `port` commands (preinstalled on macOS; on Linux, `ss` also works)
-- [Go](https://go.dev/dl/) 1.23 or later, only to build it
+- [Go](https://go.dev/dl/) 1.23 or later, only to build it from source
 
-## Build and install
+## Build from source
+
+Skip this section if you installed portctl with one of the methods in [Install](#install).
 
 **1. Build.** From the project folder:
 
@@ -102,7 +146,7 @@ $ portctl port kill <Tab>       →  the ports in use, with their program
 
 Zsh and fish also show the description next to each value.
 
-Completion must be enabled once per shell. Not sure which shell you use? Run `echo $SHELL`. On macOS it is zsh unless you changed it.
+If you installed portctl with Homebrew or the install script, completion is already set up: open a new terminal and try it. With `go install` or a build from source, it must be enabled once per shell. Not sure which shell you use? Run `echo $SHELL`. On macOS it is zsh unless you changed it.
 
 ### Zsh (default on macOS)
 
@@ -306,7 +350,7 @@ Without `sudo`, you only see your own programs. Use `sudo portctl port list` to 
 
 **Tab completes file names instead of commands.** Completion is not enabled in this shell. Follow [Tab completion](#tab-completion) for your shell (`echo $SHELL` tells you which), then open a new terminal.
 
-**`command not found: portctl`.** The folder where you installed it is not on your `PATH`. See step 2 of [Build and install](#build-and-install).
+**`command not found: portctl`.** The folder where you installed it is not on your `PATH`. See step 2 of [Build from source](#build-from-source). With `go install`, add `$(go env GOPATH)/bin` (usually `~/go/bin`) to your `PATH`.
 
 **The tunnel starts but then stops working.** Run `portctl tunnel logs <port>` to see the `ssh` error, or `portctl tunnel start <port> --foreground` to watch it live.
 
@@ -320,6 +364,21 @@ go build ./...
 ```
 
 The project uses only the Go standard library.
+
+### Releasing
+
+Releases are built by [GoReleaser](https://goreleaser.com) (`.goreleaser.yaml`) in the `release` GitHub Action. To publish a version:
+
+```bash
+git tag v0.1.0
+git push --tags
+```
+
+The Action runs the tests, then publishes the archives, the `.deb`, `.rpm` and Arch (`.pkg.tar.zst`) packages and the checksums on the Releases page, and updates the Homebrew tap, all with the completion scripts included. `install.sh` always downloads from the latest release, so it needs no changes.
+
+To try it locally without publishing anything: `goreleaser release --snapshot --clean` (the output goes to `dist/`).
+
+One-time setup, for Homebrew: create an empty public repository `oldanidavide/homebrew-tap`. Create a fine-grained GitHub token with *Contents: read and write* on that repository only, and save it in this repository as the Actions secret `HOMEBREW_TAP_TOKEN`. Until the secret exists, the release still works and only the Homebrew step is skipped.
 
 Known limitations:
 
