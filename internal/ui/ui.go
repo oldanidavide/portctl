@@ -45,6 +45,7 @@ func (s Style) Yellow(t string) string  { return s.wrap("33", t) }
 func (s Style) Blue(t string) string    { return s.wrap("34", t) }
 func (s Style) Magenta(t string) string { return s.wrap("35", t) }
 func (s Style) Cyan(t string) string    { return s.wrap("36", t) }
+func (s Style) Gray(t string) string    { return s.wrap("37", t) }
 
 func (s Style) BoldRed(t string) string   { return s.wrap("1;31", t) }
 func (s Style) BoldGreen(t string) string { return s.wrap("1;32", t) }

@@ -258,7 +258,7 @@ func (a *App) killOwner(port int, g []ports.Listener, managed map[int]state.Stat
 
 	fmt.Printf("%s %s\n\n%s\n", cOut.Red("●"), cOut.Bold(fmt.Sprintf("Port %d is held by:", port)), describeOwner(cOut, g, managed, "  "))
 	if !yes {
-		ok, err := confirm(fmt.Sprintf("%s Terminate %s (PID %d)? %s ", cOut.Yellow("?"), cOut.Bold(l.Name), pid, cOut.Dim("[y/N]")))
+		ok, err := confirm(fmt.Sprintf("%s Terminate %s (PID %d)? %s ", cOut.Yellow("?"), cOut.Bold(l.Name), pid, cOut.Gray("[y/N]")))
 		if err != nil {
 			return fail(err)
 		}

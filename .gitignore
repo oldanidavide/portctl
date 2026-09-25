@@ -34,3 +34,4 @@ go.work.sum
 # GoReleaser output
 /dist/
 /completions/
+.DS_Store

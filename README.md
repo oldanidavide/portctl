@@ -1,5 +1,7 @@
 # portctl
 
+![portctl demo: starting a tunnel, listing ports, stopping the program on a port](docs/demo.gif)
+
 `portctl` is a small command-line tool for Linux and macOS that does two things:
 
 - **SSH tunnels.** It opens a port on your computer that leads to a port on a remote server, like `ssh -L`, but you name your tunnels once in a config file and start and stop them with one short command.
