@@ -71,7 +71,7 @@ go install github.com/oldanidavide/portctl/cmd/portctl@latest
 
 Then check it works with `portctl version`.
 
-With Homebrew and the install script, [tab completion](#tab-completion) already works: just open a new terminal. With `go install` or `PORTCTL_METHOD=binary`, enable it once as described in [Tab completion](#tab-completion).
+With the install script on Linux, [tab completion](#tab-completion) already works: just open a new terminal. With Homebrew it works right away in fish; in zsh and bash see [Tab completion](#tab-completion). With `go install` or `PORTCTL_METHOD=binary`, enable it once as described there.
 
 **Update:** on macOS, `brew upgrade portctl`. On Linux, run the install script again.
 
@@ -146,7 +146,7 @@ $ portctl port kill <Tab>       →  the ports in use, with their program
 
 Zsh and fish also show the description next to each value.
 
-If you installed portctl with Homebrew or the install script, completion is already set up: open a new terminal and try it. With `go install` or a build from source, it must be enabled once per shell. Not sure which shell you use? Run `echo $SHELL`. On macOS it is zsh unless you changed it.
+If you installed portctl with the install script on Linux, completion is already set up: open a new terminal and try it. With Homebrew, fish needs nothing, and zsh needs nothing only if your `~/.zshrc` already turns on completion (Oh My Zsh and similar do; plain macOS zsh does not). Otherwise, and with `go install` or a build from source, enable it once per shell as shown below. Not sure which shell you use? Run `echo $SHELL`. On macOS it is zsh unless you changed it.
 
 ### Zsh (default on macOS)
 
